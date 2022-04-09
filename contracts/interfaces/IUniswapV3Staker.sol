@@ -42,6 +42,11 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice The max amount of seconds into the future the incentive startTime can be set
     function maxIncentiveStartLeadTime() external view returns (uint256);
 
+    /// @notice The number of user's balance
+    function depositBalance(address user) external view returns (uint256);
+    /// @notice deposit Of Owner By Index
+    function depositOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
+
     /// @notice Represents a staking incentive key
     function incentiveKeys(uint256 incentiveId)
         external

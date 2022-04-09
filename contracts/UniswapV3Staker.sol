@@ -52,6 +52,14 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     uint256 public immutable override maxIncentiveDuration;
 
     uint256 public override numberOfIncentives;
+
+    // user's depositBalance
+    mapping(address => uint256) public override depositBalance;
+    // Mapping from owner to list of owned deposit IDs
+    mapping(address => mapping(uint256 => uint256)) private _ownedDeposits;
+
+    // Mapping from deposit ID to index of the owner deposits list
+    mapping(uint256 => uint256) private _ownedDepositsIndex;
     
     /// @dev incentiveKeys[incentiveId] => IncentiveKey
     mapping(uint256 => IncentiveKey) public override incentiveKeys;
@@ -98,6 +106,12 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    ///
+    function depositOfOwnerByIndex(address owner, uint256 index) external view virtual override returns (uint256) {
+        require(index < depositBalance[owner], "UniswapV3Staker::Enumerable: owner index out of bounds");
+        return _ownedDeposits[owner][index];
     }
 
     /// @inheritdoc IUniswapV3Staker
@@ -168,6 +182,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = nonfungiblePositionManager.positions(tokenId);
 
+        _addDepositToOwnerEnumeration(msg.sender, tokenId);
         deposits[tokenId] = Deposit({owner: from, numberOfStakes: 0, tickLower: tickLower, tickUpper: tickUpper});
         emit DepositTransferred(tokenId, address(0), from);
 
@@ -190,6 +205,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         address owner = deposits[tokenId].owner;
         require(owner == msg.sender, 'UniswapV3Staker::transferDeposit: can only be called by deposit owner');
         deposits[tokenId].owner = to;
+        _addDepositToOwnerEnumeration(to, tokenId);
+        _removeDepositFromOwnerEnumeration(msg.sender, tokenId);
         emit DepositTransferred(tokenId, owner, to);
     }
 
@@ -203,7 +220,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         Deposit memory deposit = deposits[tokenId];
         require(deposit.numberOfStakes == 0, 'UniswapV3Staker::withdrawToken: cannot withdraw token while staked');
         require(deposit.owner == msg.sender, 'UniswapV3Staker::withdrawToken: only owner can withdraw token');
-
+        
+        _removeDepositFromOwnerEnumeration(msg.sender, tokenId);
         delete deposits[tokenId];
         emit DepositTransferred(tokenId, deposit.owner, address(0));
 
@@ -358,4 +376,33 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
     }
+
+    ///
+    function _addDepositToOwnerEnumeration(address to, uint256 tokenId) private {
+        uint256 length = depositBalance[to];
+        _ownedDeposits[to][length] = tokenId;
+        _ownedDepositsIndex[tokenId] = length;
+    }
+
+    ///
+    function _removeDepositFromOwnerEnumeration(address from, uint256 tokenId) private {
+        // To prevent a gap in from's tokens array, we store the last token in the index of the token to delete, and
+        // then delete the last slot (swap and pop).
+
+        uint256 lastTokenIndex = depositBalance[from] - 1;
+        uint256 tokenIndex = _ownedDepositsIndex[tokenId];
+
+        // When the token to delete is the last token, the swap operation is unnecessary
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _ownedDeposits[from][lastTokenIndex];
+
+            _ownedDeposits[from][tokenIndex] = lastTokenId; // Move the last token to the slot of the to-delete token
+            _ownedDepositsIndex[lastTokenId] = tokenIndex; // Update the moved token's index
+        }
+
+        // This also deletes the contents at the last position of the array
+        delete _ownedDepositsIndex[tokenId];
+        delete _ownedDeposits[from][lastTokenIndex];
+    }
+
 }
