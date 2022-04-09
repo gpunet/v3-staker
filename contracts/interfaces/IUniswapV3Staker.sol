@@ -36,6 +36,9 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice The max duration of an incentive in seconds
     function maxIncentiveDuration() external view returns (uint256);
 
+    /// @notice The number of incentives
+    function numberOfIncentives() external view returns (uint256);
+
     /// @notice The max amount of seconds into the future the incentive startTime can be set
     function maxIncentiveStartLeadTime() external view returns (uint256);
 

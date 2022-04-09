@@ -51,7 +51,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     /// @inheritdoc IUniswapV3Staker
     uint256 public immutable override maxIncentiveDuration;
 
-    uint256 public numberOfIncentives;
+    uint256 public override numberOfIncentives;
     
     /// @dev incentiveKeys[incentiveId] => IncentiveKey
     mapping(uint256 => IncentiveKey) public override incentiveKeys;
