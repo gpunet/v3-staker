@@ -39,12 +39,24 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice The max amount of seconds into the future the incentive startTime can be set
     function maxIncentiveStartLeadTime() external view returns (uint256);
 
+    /// @notice Represents a staking incentive key
+    function incentiveKeys(uint256 incentiveId)
+        external
+        view
+        returns (
+            IERC20Minimal rewardToken,
+            IUniswapV3Pool pool,
+            uint48 startTime,
+            uint48 endTime,
+            address refundee
+        );
+
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
     /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
     /// @return numberOfStakes The count of deposits that are currently staked for the incentive
-    function incentives(bytes32 incentiveId)
+    function incentives(uint256 incentiveId)
         external
         view
         returns (
@@ -73,7 +85,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param incentiveId The ID of the incentive for which the token is staked
     /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
     /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
-    function stakes(uint256 tokenId, bytes32 incentiveId)
+    function stakes(uint256 tokenId, uint256 incentiveId)
         external
         view
         returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
@@ -87,12 +99,12 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice Creates a new liquidity mining incentive program
     /// @param key Details of the incentive to create
     /// @param reward The amount of reward tokens to be distributed
-    function createIncentive(IncentiveKey memory key, uint256 reward) external;
+    function createIncentive(IncentiveKey memory key, uint256 reward) external returns (uint256 incentiveId);
 
     /// @notice Ends an incentive after the incentive end time has passed and all stakes have been withdrawn
-    /// @param key Details of the incentive to end
+    /// @param incentiveId id of the incentive to end
     /// @return refund The remaining reward tokens when the incentive is ended
-    function endIncentive(IncentiveKey memory key) external returns (uint256 refund);
+    function endIncentive(uint256 incentiveId) external returns (uint256 refund);
 
     /// @notice Transfers ownership of a deposit from the sender to the given recipient
     /// @param tokenId The ID of the token (and the deposit) to transfer
@@ -110,14 +122,14 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     ) external;
 
     /// @notice Stakes a Uniswap V3 LP token
-    /// @param key The key of the incentive for which to stake the NFT
+    /// @param incentiveId id the incentive for which to stake the NFT
     /// @param tokenId The ID of the token to stake
-    function stakeToken(IncentiveKey memory key, uint256 tokenId) external;
+    function stakeToken(uint256 incentiveId, uint256 tokenId) external;
 
     /// @notice Unstakes a Uniswap V3 LP token
-    /// @param key The key of the incentive for which to unstake the NFT
+    /// @param incentiveId id of the incentive for which to unstake the NFT
     /// @param tokenId The ID of the token to unstake
-    function unstakeToken(IncentiveKey memory key, uint256 tokenId) external;
+    function unstakeToken(uint256 incentiveId, uint256 tokenId) external;
 
     /// @notice Transfers `amountRequested` of accrued `rewardToken` rewards from the contract to the recipient `to`
     /// @param rewardToken The token being distributed as a reward
@@ -131,14 +143,15 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     ) external returns (uint256 reward);
 
     /// @notice Calculates the reward amount that will be received for the given stake
-    /// @param key The key of the incentive
+    /// @param incentiveId The ID of the incentive
     /// @param tokenId The ID of the token
     /// @return reward The reward accrued to the NFT for the given incentive thus far
-    function getRewardInfo(IncentiveKey memory key, uint256 tokenId)
+    function getRewardInfo(uint256 incentiveId, uint256 tokenId)
         external
         returns (uint256 reward, uint160 secondsInsideX128);
 
     /// @notice Event emitted when a liquidity mining incentive has been created
+    /// @param incentiveId The ID of the incentive
     /// @param rewardToken The token being distributed as a reward
     /// @param pool The Uniswap V3 pool
     /// @param startTime The time when the incentive program begins
@@ -170,12 +183,12 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param tokenId The unique identifier of an Uniswap V3 LP token
     /// @param liquidity The amount of liquidity staked
     /// @param incentiveId The incentive in which the token is staking
-    event TokenStaked(uint256 indexed tokenId, bytes32 indexed incentiveId, uint128 liquidity);
+    event TokenStaked(uint256 indexed tokenId, uint256 indexed incentiveId, uint128 liquidity);
 
     /// @notice Event emitted when a Uniswap V3 LP token has been unstaked
     /// @param tokenId The unique identifier of an Uniswap V3 LP token
     /// @param incentiveId The incentive in which the token is staking
-    event TokenUnstaked(uint256 indexed tokenId, bytes32 indexed incentiveId);
+    event TokenUnstaked(uint256 indexed tokenId, uint256 indexed incentiveId);
 
     /// @notice Event emitted when a reward token has been claimed
     /// @param to The address where claimed rewards were sent to

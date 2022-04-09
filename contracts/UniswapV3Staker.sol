@@ -48,9 +48,12 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     uint256 public immutable override maxIncentiveStartLeadTime;
     /// @inheritdoc IUniswapV3Staker
     uint256 public immutable override maxIncentiveDuration;
+
+    uint256 public numberOfIncentives;
     
-    IncentiveKey[] public override incentiveKeys;
-    /// @dev bytes32 refers to the return value of IncentiveId.compute
+    /// @dev incentiveKeys[incentiveId] => IncentiveKey
+    mapping(uint256 => IncentiveKey) public override incentiveKeys;
+    /// @dev incentives[incentiveId] => Incentive
     mapping(uint256 => Incentive) public override incentives;
 
     /// @dev deposits[tokenId] => Deposit
@@ -60,7 +63,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     mapping(uint256 => mapping(uint256 => Stake)) private _stakes;
 
     /// @inheritdoc IUniswapV3Staker
-    function stakes(uint256 tokenId, bytes32 incentiveId)
+    function stakes(uint256 tokenId, uint256 incentiveId)
         public
         view
         override
@@ -110,8 +113,9 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
             key.endTime - key.startTime <= maxIncentiveDuration,
             'UniswapV3Staker::createIncentive: incentive duration is too long'
         );
-        uint256 incentiveId = incentiveKeys.length();
-        incentiveKeys.push(key);
+        incentiveId = numberOfIncentives;
+        incentiveKeys[incentiveId] = key;
+        numberOfIncentives += 1;
 
         incentives[incentiveId].totalRewardUnclaimed += reward;
 
@@ -125,7 +129,6 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
         IncentiveKey memory key = incentiveKeys[incentiveId];
         require(block.timestamp >= key.endTime, 'UniswapV3Staker::endIncentive: cannot end incentive before end time');
 
-        bytes32 incentiveId = IncentiveId.compute(key);
         Incentive storage incentive = incentives[incentiveId];
 
         refund = incentive.totalRewardUnclaimed;
@@ -287,6 +290,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
+        IncentiveKey memory key = incentiveKeys[incentiveId];
         Deposit memory deposit = deposits[tokenId];
         Incentive memory incentive = incentives[incentiveId];
 
