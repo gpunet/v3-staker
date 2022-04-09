@@ -15,8 +15,10 @@ import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 import '@uniswap/v3-periphery/contracts/base/Multicall.sol';
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
 /// @title Uniswap V3 canonical staking interface
-contract UniswapV3Staker is IUniswapV3Staker, Multicall {
+contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     /// @notice Represents a staking incentive
     struct Incentive {
         uint256 totalRewardUnclaimed;
@@ -95,10 +97,12 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
         nonfungiblePositionManager = _nonfungiblePositionManager;
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// @inheritdoc IUniswapV3Staker
     function createIncentive(IncentiveKey memory key, uint256 reward) external override returns (uint256 incentiveId) {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
         require(reward > 0, 'UniswapV3Staker::createIncentive: reward must be positive');
         require(
             block.timestamp <= key.startTime,
