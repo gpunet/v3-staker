@@ -22,8 +22,8 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     struct IncentiveKey {
         IERC20Minimal rewardToken;
         IUniswapV3Pool pool;
-        uint256 startTime;
-        uint256 endTime;
+        uint48 startTime;
+        uint48 endTime;
         address refundee;
     }
 
@@ -146,6 +146,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param refundee The address which receives any remaining reward tokens after the end time
     /// @param reward The amount of reward tokens to be distributed
     event IncentiveCreated(
+        uint256 indexed incentiveId,
         IERC20Minimal indexed rewardToken,
         IUniswapV3Pool indexed pool,
         uint256 startTime,
@@ -157,7 +158,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice Event that can be emitted when a liquidity mining incentive has ended
     /// @param incentiveId The incentive which is ending
     /// @param refund The amount of reward tokens refunded
-    event IncentiveEnded(bytes32 indexed incentiveId, uint256 refund);
+    event IncentiveEnded(uint256 indexed incentiveId, uint256 refund);
 
     /// @notice Emitted when ownership of a deposit changes
     /// @param tokenId The ID of the deposit (and token) that is being transferred

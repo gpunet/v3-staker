@@ -48,15 +48,16 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     uint256 public immutable override maxIncentiveStartLeadTime;
     /// @inheritdoc IUniswapV3Staker
     uint256 public immutable override maxIncentiveDuration;
-
+    
+    IncentiveKey[] public override incentiveKeys;
     /// @dev bytes32 refers to the return value of IncentiveId.compute
-    mapping(bytes32 => Incentive) public override incentives;
+    mapping(uint256 => Incentive) public override incentives;
 
     /// @dev deposits[tokenId] => Deposit
     mapping(uint256 => Deposit) public override deposits;
 
     /// @dev stakes[tokenId][incentiveHash] => Stake
-    mapping(uint256 => mapping(bytes32 => Stake)) private _stakes;
+    mapping(uint256 => mapping(uint256 => Stake)) private _stakes;
 
     /// @inheritdoc IUniswapV3Staker
     function stakes(uint256 tokenId, bytes32 incentiveId)
@@ -94,7 +95,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function createIncentive(IncentiveKey memory key, uint256 reward) external override {
+    function createIncentive(IncentiveKey memory key, uint256 reward) external override returns (uint256 incentiveId) {
         require(reward > 0, 'UniswapV3Staker::createIncentive: reward must be positive');
         require(
             block.timestamp <= key.startTime,
@@ -109,18 +110,19 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
             key.endTime - key.startTime <= maxIncentiveDuration,
             'UniswapV3Staker::createIncentive: incentive duration is too long'
         );
-
-        bytes32 incentiveId = IncentiveId.compute(key);
+        uint256 incentiveId = incentiveKeys.length();
+        incentiveKeys.push(key);
 
         incentives[incentiveId].totalRewardUnclaimed += reward;
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
-        emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
+        emit IncentiveCreated(incentiveId, key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function endIncentive(IncentiveKey memory key) external override returns (uint256 refund) {
+    function endIncentive(uint256 incentiveId) external override returns (uint256 refund) {
+        IncentiveKey memory key = incentiveKeys[incentiveId];
         require(block.timestamp >= key.endTime, 'UniswapV3Staker::endIncentive: cannot end incentive before end time');
 
         bytes32 incentiveId = IncentiveId.compute(key);
@@ -163,12 +165,12 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
         emit DepositTransferred(tokenId, address(0), from);
 
         if (data.length > 0) {
-            if (data.length == 160) {
-                _stakeToken(abi.decode(data, (IncentiveKey)), tokenId);
+            if (data.length == 32) {
+                _stakeToken(abi.decode(data, (uint256)), tokenId);
             } else {
-                IncentiveKey[] memory keys = abi.decode(data, (IncentiveKey[]));
-                for (uint256 i = 0; i < keys.length; i++) {
-                    _stakeToken(keys[i], tokenId);
+                uint256[] memory ids = abi.decode(data, (uint256[]));
+                for (uint256 i = 0; i < ids.length; i++) {
+                    _stakeToken(ids[i], tokenId);
                 }
             }
         }
@@ -202,14 +204,15 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function stakeToken(IncentiveKey memory key, uint256 tokenId) external override {
+    function stakeToken(uint256 incentiveId, uint256 tokenId) external override {
         require(deposits[tokenId].owner == msg.sender, 'UniswapV3Staker::stakeToken: only owner can stake token');
 
-        _stakeToken(key, tokenId);
+        _stakeToken(incentiveId, tokenId);
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function unstakeToken(IncentiveKey memory key, uint256 tokenId) external override {
+    function unstakeToken(uint256 incentiveId, uint256 tokenId) external override {
+        IncentiveKey memory key = incentiveKeys[incentiveId];
         Deposit memory deposit = deposits[tokenId];
         // anyone can call unstakeToken if the block time is after the end time of the incentive
         if (block.timestamp < key.endTime) {
@@ -218,8 +221,6 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
                 'UniswapV3Staker::unstakeToken: only owner can withdraw token before incentive end time'
             );
         }
-
-        bytes32 incentiveId = IncentiveId.compute(key);
 
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
 
@@ -277,14 +278,12 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     }
 
     /// @inheritdoc IUniswapV3Staker
-    function getRewardInfo(IncentiveKey memory key, uint256 tokenId)
+    function getRewardInfo(uint256 incentiveId, uint256 tokenId)
         external
         view
         override
         returns (uint256 reward, uint160 secondsInsideX128)
     {
-        bytes32 incentiveId = IncentiveId.compute(key);
-
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
@@ -307,11 +306,10 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
-    function _stakeToken(IncentiveKey memory key, uint256 tokenId) private {
+    function _stakeToken(uint256 incentiveId, uint256 tokenId) private {
+        IncentiveKey memory key = incentiveKeys[incentiveId];
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::stakeToken: incentive not started');
         require(block.timestamp < key.endTime, 'UniswapV3Staker::stakeToken: incentive ended');
-
-        bytes32 incentiveId = IncentiveId.compute(key);
 
         require(
             incentives[incentiveId].totalRewardUnclaimed > 0,
@@ -320,6 +318,11 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall {
         require(
             _stakes[tokenId][incentiveId].liquidityNoOverflow == 0,
             'UniswapV3Staker::stakeToken: token already staked'
+        );
+        // new feature
+        require(
+            deposits[tokenId].numberOfStakes == 0,
+            'UniswapV3Staker::stakeToken: token can only be staked once'
         );
 
         (IUniswapV3Pool pool, int24 tickLower, int24 tickUpper, uint128 liquidity) =
