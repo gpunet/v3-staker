@@ -46,6 +46,19 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     function depositBalance(address user) external view returns (uint256);
     /// @notice deposit Of Owner By Index
     function depositOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
+    /// info of incentive
+    function incentiveInfo(uint256 incentiveId) external view
+        returns (
+            IERC20Minimal rewardToken,
+            address token0,
+            address token1,
+            uint24  fee,
+            uint48  startTime,
+            uint48  endTime,
+            uint256 totalRewardUnclaimed,
+            uint160 totalSecondsClaimedX128,
+            uint96  numberOfStakes
+        );
 
     /// @notice Represents a staking incentive key
     function incentiveKeys(uint256 incentiveId)
@@ -70,7 +83,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         returns (
             uint256 totalRewardUnclaimed,
             uint160 totalSecondsClaimedX128,
-            uint96 numberOfStakes
+            uint96  numberOfStakes
         );
 
     /// @notice Returns information about a deposited NFT

@@ -108,6 +108,33 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
+    /// 
+    function incentiveInfo(uint256 incentiveId) external view override
+    returns (
+        IERC20Minimal rewardToken,
+        address token0,
+        address token1,
+        uint24  fee,
+        uint48  startTime,
+        uint48  endTime,
+        uint256 totalRewardUnclaimed,
+        uint160 totalSecondsClaimedX128,
+        uint96  numberOfStakes
+    ) {
+        IncentiveKey memory key = incentiveKeys[incentiveId];
+        Incentive memory it = incentives[incentiveId];
+        
+        rewardToken = key.rewardToken;
+        startTime = key.startTime;
+        endTime = key.endTime;
+        token0 = key.pool.token0();
+        token1 = key.pool.token1();
+        fee = key.pool.fee();
+        totalRewardUnclaimed = it.totalRewardUnclaimed;
+        totalSecondsClaimedX128 = it.totalSecondsClaimedX128;
+        numberOfStakes = it.numberOfStakes;
+    }
+
     ///
     function depositOfOwnerByIndex(address owner, uint256 index) external view virtual override returns (uint256) {
         require(index < depositBalance[owner], "UniswapV3Staker::Enumerable: owner index out of bounds");
