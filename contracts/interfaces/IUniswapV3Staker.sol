@@ -106,10 +106,10 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param incentiveId The ID of the incentive for which the token is staked
     /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
     /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
-    function stakes(uint256 tokenId, uint256 incentiveId)
+    function stakes(uint256 tokenId)
         external
         view
-        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
+        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint64 incentiveId, uint64 startTime);
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
@@ -148,9 +148,9 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     function stakeToken(uint256 incentiveId, uint256 tokenId) external;
 
     /// @notice Unstakes a Uniswap V3 LP token
-    /// @param incentiveId id of the incentive for which to unstake the NFT
+    /// @param data callback data
     /// @param tokenId The ID of the token to unstake
-    function unstakeToken(uint256 incentiveId, uint256 tokenId) external;
+    function unstakeToken(uint256 tokenId, bytes memory data) external;
 
     /// @notice Transfers `amountRequested` of accrued `rewardToken` rewards from the contract to the recipient `to`
     /// @param rewardToken The token being distributed as a reward
@@ -164,10 +164,9 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     ) external returns (uint256 reward);
 
     /// @notice Calculates the reward amount that will be received for the given stake
-    /// @param incentiveId The ID of the incentive
     /// @param tokenId The ID of the token
     /// @return reward The reward accrued to the NFT for the given incentive thus far
-    function getRewardInfo(uint256 incentiveId, uint256 tokenId)
+    function getRewardInfo(uint256 tokenId)
         external
         returns (uint256 reward, uint160 secondsInsideX128);
 
