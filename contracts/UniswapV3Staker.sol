@@ -119,8 +119,9 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         address token0,
         address token1,
         uint24  fee,
-        uint48  startTime,
-        uint48  endTime,
+        uint64  startTime,
+        uint64  endTime,
+        uint64  minDuration,
         uint256 totalRewardUnclaimed,
         uint160 totalSecondsClaimedX128,
         uint96  numberOfStakes
@@ -131,6 +132,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         rewardToken = key.rewardToken;
         startTime = key.startTime;
         endTime = key.endTime;
+        minDuration = key.minDuration;
         token0 = key.pool.token0();
         token1 = key.pool.token1();
         fee = key.pool.fee();
@@ -252,7 +254,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         require(deposit.numberOfStakes == 0, 'UniswapV3Staker::withdrawToken: cannot withdraw token while staked');
         require(deposit.owner == msg.sender, 'UniswapV3Staker::withdrawToken: only owner can withdraw token');
         
-        _removeDepositFromOwnerEnumeration(msg.sender, tokenId);
+        _removeDepositFromOwnerEnumeration(deposit.owner, tokenId);
         delete deposits[tokenId];
         emit DepositTransferred(tokenId, deposit.owner, address(0));
 
@@ -268,13 +270,17 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
     /// @inheritdoc IUniswapV3Staker
     function unstakeToken(uint256 tokenId, bytes memory data) external override {
-        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint64 incentiveId, ) = stakes(tokenId);
+        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity, uint64 incentiveId, uint64 startTime) = stakes(tokenId);
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
         IncentiveKey memory key = incentiveKeys[incentiveId];
         Deposit memory deposit = deposits[tokenId];
         // anyone can call unstakeToken if the block time is after the end time of the incentive
         if (block.timestamp < key.endTime) {
+            require(
+                startTime + key.minDuration < block.timestamp,
+                'UniswapV3Staker::unstakeToken: it is not time yet!'
+            );
             require(
                 deposit.owner == msg.sender,
                 'UniswapV3Staker::unstakeToken: only owner can withdraw token before incentive end time'
@@ -308,11 +314,11 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         // this only overflows if a token has a total supply greater than type(uint256).max
         rewards[key.rewardToken][deposit.owner] += reward;
         // withdraw token
-        _removeDepositFromOwnerEnumeration(msg.sender, tokenId);
+        _removeDepositFromOwnerEnumeration(deposit.owner, tokenId);
         delete deposits[tokenId];
         emit DepositTransferred(tokenId, deposit.owner, address(0));
 
-        nonfungiblePositionManager.safeTransferFrom(address(this), msg.sender, tokenId, data);
+        nonfungiblePositionManager.safeTransferFrom(address(this), deposit.owner, tokenId, data);
 
         delete _stakes[tokenId];
         emit TokenUnstaked(tokenId, incentiveId);
@@ -421,6 +427,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         uint256 length = depositBalance[to];
         _ownedDeposits[to][length] = tokenId;
         _ownedDepositsIndex[tokenId] = length;
+        depositBalance[to] += 1;
     }
 
     ///
@@ -439,6 +446,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
             _ownedDepositsIndex[lastTokenId] = tokenIndex; // Update the moved token's index
         }
 
+        depositBalance[from] -= 1;
         // This also deletes the contents at the last position of the array
         delete _ownedDepositsIndex[tokenId];
         delete _ownedDeposits[from][lastTokenIndex];
