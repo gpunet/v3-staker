@@ -28,7 +28,8 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         uint64 minDuration;
         address refundee;
     }
-
+    /// referrer
+    function referrer() external view returns (address);
     /// @notice The Uniswap V3 Factory
     function factory() external view returns (IUniswapV3Factory);
 
@@ -120,7 +121,14 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param owner The owner for which the rewards owed are checked
     /// @return rewardsOwed The amount of the reward token claimable by the owner
     function rewards(IERC20Minimal rewardToken, address owner) external view returns (uint256 rewardsOwed);
-
+    /// init user
+    function initUser(address to) external;
+    /// add referrer
+    function addReferrer(address from, address to) external;
+    /// modify ref rate
+    function modifyRefRate(uint256 r0, uint256 r1, uint256 r2, uint256 r3, uint256 r4) external;
+    /// refund token
+    function refundToken(address token, address to, uint256 amount) external;
     /// @notice Creates a new liquidity mining incentive program
     /// @param key Details of the incentive to create
     /// @param reward The amount of reward tokens to be distributed
@@ -218,4 +226,8 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param to The address where claimed rewards were sent to
     /// @param reward The amount of reward tokens claimed
     event RewardClaimed(address indexed to, uint256 reward);
+    /// referrer added
+    event ReferrerAdded(address indexed to, address from);
+    /// ref distribute
+    event RefDistributed(address indexed to, unint256 ref);
 }

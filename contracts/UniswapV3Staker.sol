@@ -21,7 +21,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     /// @notice Represents a staking incentive
     struct Incentive {
-        uint256 totalRewardUnclaimed;
+        uint128 totalRewardUnclaimed;
+        uint128 totalRefeUnclaimed;
         uint160 totalSecondsClaimedX128;
         uint96 numberOfStakes;
     }
@@ -42,7 +43,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         uint64 incentiveId;
         uint64 startTime;
     }
-
+    ///referrer rate
+    uint256[5] refRate = {2500, 2000, 1500, 1000, 500};
     /// @inheritdoc IUniswapV3Staker
     IUniswapV3Factory public immutable override factory;
     /// @inheritdoc IUniswapV3Staker
@@ -73,6 +75,9 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
     /// @dev stakes[tokenId] => Stake
     mapping(uint256 => Stake) private _stakes;
+    
+    /// @dev referrer[user] => user
+    mapping(address => address) public override referrer;
 
     /// @inheritdoc IUniswapV3Staker
     function stakes(uint256 tokenId)
@@ -110,6 +115,42 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    ///
+    function initUser(address to) external override {
+        require(referrer[from] == 0, 'UniswapV3Staker::addReferrer: alreday add!');
+        require(referrer[to] != 0, 'UniswapV3Staker::addReferrer: invalid referrer!');
+        require(depositBalance[to] != 0, 'UniswapV3Staker::addReferrer: invalid referrer!');
+        _addReferrer(msg.sender, to);
+    }
+
+    ///
+    function addReferrer(address from, address to) external override {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
+        _addReferrer(msg.sender, to);
+    }
+
+    ///
+    function _addReferrer(address from, address to) private {
+        referrer[from] = to;
+        emit ReferrerAdded(to, from);
+    }
+
+    ///
+    function modifyRefRate(uint256 r0, uint256 r1, uint256 r2, uint256 r3, uint256 r4) external override {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
+        refRate[0] = r0;
+        refRate[1] = r1;
+        refRate[2] = r2;
+        refRate[3] = r3;
+        refRate[4] = r4;
+    }
+
+    ///
+    function refundToken(address token, address to, uint256 amount) external override {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
+        TransferHelperExtended.safeTransfer(token, to, amount);
     }
 
     /// 
@@ -168,9 +209,14 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         incentiveKeys[incentiveId] = key;
         numberOfIncentives += 1;
 
+        uint256 ref = 0;
+        for(uint i=0; i<5; ++i) {
+            ref += reward * refRate[i] / 10000;
+        }
         incentives[incentiveId].totalRewardUnclaimed += reward;
+        incentives[incentiveId].totalRefeUnclaimed += ref;
 
-        TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
+        TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward + ref);
 
         emit IncentiveCreated(incentiveId, key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
     }
@@ -182,7 +228,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
         Incentive storage incentive = incentives[incentiveId];
 
-        refund = incentive.totalRewardUnclaimed;
+        refund = incentive.totalRewardUnclaimed + incentive.totalRefeUnclaimed;
 
         require(refund > 0, 'UniswapV3Staker::endIncentive: no refund available');
         require(
@@ -192,6 +238,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
         // issue the refund
         incentive.totalRewardUnclaimed = 0;
+        incentive.totalRefeUnclaimed = 0;
         TransferHelperExtended.safeTransfer(address(key.rewardToken), key.refundee, refund);
 
         // note we never clear totalSecondsClaimedX128
@@ -313,6 +360,19 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         incentive.totalRewardUnclaimed -= reward;
         // this only overflows if a token has a total supply greater than type(uint256).max
         rewards[key.rewardToken][deposit.owner] += reward;
+        //update ref
+        address from = deposit.owner;
+        for (uint i = 0; i < 5; ++i) {
+            if (referrer[from] != 0) {
+                uint 256 ref = reward * refRate[i] / 10000;
+                rewards[key.rewardToken][referrer[from]] += ref;
+                incentive.totalRefeUnclaimed -= ref;
+                from = referrer[from];
+                emit RefDistributed(from, ref);
+            } else {
+                break;
+            }         
+        }
         // withdraw token
         _removeDepositFromOwnerEnumeration(deposit.owner, tokenId);
         delete deposits[tokenId];
