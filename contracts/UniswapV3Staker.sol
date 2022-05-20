@@ -43,8 +43,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         uint64 incentiveId;
         uint64 startTime;
     }
-    ///referrer rate
-    uint256[5] refRate = {2500, 2000, 1500, 1000, 500};
+    /// @inheritdoc IUniswapV3Staker
+    uint256[5] public override refRate = [2500, 2000, 1500, 1000, 500];
     /// @inheritdoc IUniswapV3Staker
     IUniswapV3Factory public immutable override factory;
     /// @inheritdoc IUniswapV3Staker
@@ -364,7 +364,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         address from = deposit.owner;
         for (uint i = 0; i < 5; ++i) {
             if (referrer[from] != 0) {
-                uint 256 ref = reward * refRate[i] / 10000;
+                uint256 ref = reward * refRate[i] / 10000;
                 rewards[key.rewardToken][referrer[from]] += ref;
                 incentive.totalRefeUnclaimed -= ref;
                 from = referrer[from];

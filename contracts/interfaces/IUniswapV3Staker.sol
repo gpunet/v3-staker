@@ -28,8 +28,10 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         uint64 minDuration;
         address refundee;
     }
+    /// ref rate
+    function refRate(uint256 id) public view returns (uint256);
     /// referrer
-    function referrer() external view returns (address);
+    function referrer(address from) external view returns (address);
     /// @notice The Uniswap V3 Factory
     function factory() external view returns (IUniswapV3Factory);
 
@@ -229,5 +231,5 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// referrer added
     event ReferrerAdded(address indexed to, address from);
     /// ref distribute
-    event RefDistributed(address indexed to, unint256 ref);
+    event RefDistributed(address indexed to, uint256 ref);
 }
