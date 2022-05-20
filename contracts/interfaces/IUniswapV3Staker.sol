@@ -130,7 +130,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// add referrer
     function addReferrer(address from, address to) external;
     /// modify ref rate
-    function modifyRefRate(uint256 id, uint256 rate) external;
+    // function modifyRefRate(uint256 id, uint256 rate) external;
     /// refund token
     function refundToken(address token, address to, uint256 amount) external;
     /// @notice Creates a new liquidity mining incentive program
