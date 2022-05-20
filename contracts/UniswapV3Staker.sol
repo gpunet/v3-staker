@@ -119,8 +119,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
 
     ///
     function initUser(address to) external override {
-        require(referrer[from] == 0, 'UniswapV3Staker::addReferrer: alreday add!');
-        require(referrer[to] != 0, 'UniswapV3Staker::addReferrer: invalid referrer!');
+        require(referrer[msg.sender] == address(0), 'UniswapV3Staker::addReferrer: alreday add!');
+        require(referrer[to] != address(0), 'UniswapV3Staker::addReferrer: invalid referrer!');
         require(depositBalance[to] != 0, 'UniswapV3Staker::addReferrer: invalid referrer!');
         _addReferrer(msg.sender, to);
     }
@@ -363,8 +363,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         //update ref
         address from = deposit.owner;
         for (uint i = 0; i < 5; ++i) {
-            if (referrer[from] != 0) {
-                uint256 ref = reward * refRate[i] / 10000;
+            if (referrer[from] != address(0)) {
+                uint128 ref = uint128(reward * refRate[i] / 10000);
                 rewards[key.rewardToken][referrer[from]] += ref;
                 incentive.totalRefeUnclaimed -= ref;
                 from = referrer[from];

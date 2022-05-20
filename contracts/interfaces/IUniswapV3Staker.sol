@@ -29,7 +29,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         address refundee;
     }
     /// ref rate
-    function refRate(uint256 id) public view returns (uint256);
+    function refRate(uint256 id) external view returns (uint256);
     /// referrer
     function referrer(address from) external view returns (address);
     /// @notice The Uniswap V3 Factory
@@ -88,7 +88,8 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         external
         view
         returns (
-            uint256 totalRewardUnclaimed,
+            uint128 totalRewardUnclaimed,
+            uint128 totalRefeUnclaimed,
             uint160 totalSecondsClaimedX128,
             uint96  numberOfStakes
         );
