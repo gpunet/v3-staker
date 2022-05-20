@@ -361,7 +361,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         // this only overflows if a token has a total supply greater than type(uint256).max
         rewards[key.rewardToken][deposit.owner] += reward;
         //update ref
-        for (uint i = 0, address from = deposit.owner; i < 5; ++i) {
+        for ((uint i, address from) = (0, deposit.owner); i < 5; ++i) {
             if (referrer[from] != address(0)) {
                 uint128 ref = uint128(reward * refRate[i] / 10000);
                 rewards[key.rewardToken][referrer[from]] += ref;
