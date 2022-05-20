@@ -82,6 +82,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
+    /// @return totalRefeUnclaimed The amount of ref token not yet claimed by users
     /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
     /// @return numberOfStakes The count of deposits that are currently staked for the incentive
     function incentives(uint256 incentiveId)

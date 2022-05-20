@@ -213,8 +213,8 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         for(uint i=0; i<5; ++i) {
             ref += reward * refRate[i] / 10000;
         }
-        incentives[incentiveId].totalRewardUnclaimed += reward;
-        incentives[incentiveId].totalRefeUnclaimed += ref;
+        incentives[incentiveId].totalRewardUnclaimed += uint128(reward);
+        incentives[incentiveId].totalRefeUnclaimed += uint128(ref);
 
         TransferHelperExtended.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward + ref);
 
@@ -357,7 +357,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
         // reward rate will fall drastically so it's safe
         incentive.totalSecondsClaimedX128 += secondsInsideX128;
         // reward is never greater than total reward unclaimed
-        incentive.totalRewardUnclaimed -= reward;
+        incentive.totalRewardUnclaimed -= uint128(reward);
         // this only overflows if a token has a total supply greater than type(uint256).max
         rewards[key.rewardToken][deposit.owner] += reward;
         //update ref
