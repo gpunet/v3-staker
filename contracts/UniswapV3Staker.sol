@@ -128,7 +128,7 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     ///
     function addReferrer(address from, address to) external override {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
-        _addReferrer(msg.sender, to);
+        _addReferrer(from, to);
     }
 
     ///
