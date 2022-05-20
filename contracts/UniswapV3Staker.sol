@@ -138,13 +138,9 @@ contract UniswapV3Staker is IUniswapV3Staker, Multicall, AccessControl {
     }
 
     ///
-    function modifyRefRate(uint256 r0, uint256 r1, uint256 r2, uint256 r3, uint256 r4) external override {
+    function modifyRefRate(uint256 id, uint256 rate) external override {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not admin");
-        refRate[0] = r0;
-        refRate[1] = r1;
-        refRate[2] = r2;
-        refRate[3] = r3;
-        refRate[4] = r4;
+        refRate[id] = rate;
     }
 
     ///
