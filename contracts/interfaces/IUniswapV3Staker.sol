@@ -6,7 +6,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
+import './IERC20Mintable.sol';
 
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/IMulticall.sol';
@@ -21,7 +21,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param minDuration The min duration of stake
     /// @param refundee The address which receives any remaining reward tokens when the incentive is ended
     struct IncentiveKey {
-        IERC20Minimal rewardToken;
+        IERC20Mintable rewardToken;
         IUniswapV3Pool pool;
         uint64 startTime;
         uint64 endTime;
@@ -30,8 +30,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     }
     /// ref rate
     function refRate(uint256 id) external view returns (uint256);
-    /// referrer
-    function referrer(address from) external view returns (address);
+
     /// @notice The Uniswap V3 Factory
     function factory() external view returns (IUniswapV3Factory);
 
@@ -47,6 +46,9 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice The max amount of seconds into the future the incentive startTime can be set
     function maxIncentiveStartLeadTime() external view returns (uint256);
 
+    /// @notice set ref rate
+    function setRefRate(uint256 id, uint256 rate) external;
+    
     /// @notice The number of user's balance
     function depositBalance(address user) external view returns (uint256);
     /// @notice deposit Of Owner By Index
@@ -54,7 +56,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// info of incentive
     function incentiveInfo(uint256 incentiveId) external view
         returns (
-            IERC20Minimal rewardToken,
+            IERC20Mintable rewardToken,
             address token0,
             address token1,
             uint24  fee,
@@ -71,7 +73,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
         external
         view
         returns (
-            IERC20Minimal rewardToken,
+            IERC20Mintable rewardToken,
             IUniswapV3Pool pool,
             uint64 startTime,
             uint64 endTime,
@@ -82,15 +84,13 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
-    /// @return totalRefeUnclaimed The amount of ref token not yet claimed by users
     /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
     /// @return numberOfStakes The count of deposits that are currently staked for the incentive
     function incentives(uint256 incentiveId)
         external
         view
         returns (
-            uint128 totalRewardUnclaimed,
-            uint128 totalRefeUnclaimed,
+            uint256 totalRewardUnclaimed,
             uint160 totalSecondsClaimedX128,
             uint96  numberOfStakes
         );
@@ -124,13 +124,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param rewardToken The token for which to check rewards
     /// @param owner The owner for which the rewards owed are checked
     /// @return rewardsOwed The amount of the reward token claimable by the owner
-    function rewards(IERC20Minimal rewardToken, address owner) external view returns (uint256 rewardsOwed);
-    /// init user
-    function initUser(address to) external;
-    /// add referrer
-    function addReferrer(address from, address to) external;
-    /// modify ref rate
-    // function modifyRefRate(uint256 id, uint256 rate) external;
+    function rewards(IERC20Mintable rewardToken, address owner) external view returns (uint256 rewardsOwed);
     /// refund token
     function refundToken(address token, address to, uint256 amount) external;
     /// @notice Creates a new liquidity mining incentive program
@@ -140,8 +134,8 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
 
     /// @notice Ends an incentive after the incentive end time has passed and all stakes have been withdrawn
     /// @param incentiveId id of the incentive to end
-    /// @return refund The remaining reward tokens when the incentive is ended
-    function endIncentive(uint256 incentiveId) external returns (uint256 refund);
+    /// @return numberOfStakes The number of stakes when the incentive is ended
+    function endIncentive(uint256 incentiveId) external returns (uint256 numberOfStakes);
 
     /// @notice Transfers ownership of a deposit from the sender to the given recipient
     /// @param tokenId The ID of the token (and the deposit) to transfer
@@ -174,7 +168,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param amountRequested The amount of reward tokens to claim. Claims entire reward amount if set to 0.
     /// @return reward The amount of reward tokens claimed
     function claimReward(
-        IERC20Minimal rewardToken,
+        IERC20Mintable rewardToken,
         address to,
         uint256 amountRequested
     ) external returns (uint256 reward);
@@ -196,7 +190,7 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param reward The amount of reward tokens to be distributed
     event IncentiveCreated(
         uint256 indexed incentiveId,
-        IERC20Minimal indexed rewardToken,
+        IERC20Mintable indexed rewardToken,
         IUniswapV3Pool indexed pool,
         uint256 startTime,
         uint256 endTime,
@@ -230,8 +224,11 @@ interface IUniswapV3Staker is IERC721Receiver, IMulticall {
     /// @param to The address where claimed rewards were sent to
     /// @param reward The amount of reward tokens claimed
     event RewardClaimed(address indexed to, uint256 reward);
-    /// referrer added
-    event ReferrerAdded(address indexed to, address from);
     /// ref distribute
     event RefDistributed(address indexed to, uint256 ref);
+}
+
+interface IRefStore {
+    /// referrer
+    function referrer(address from) external view returns (address);
 }
